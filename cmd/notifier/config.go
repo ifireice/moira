@@ -36,6 +36,8 @@ type notifierConfig struct {
 	Timezone string `yaml:"timezone"`
 	// Format for email sender. Default is "15:04 02.01.2006". See https://golang.org/pkg/time/#Time.Format for more details about golang time formatting.
 	DateTimeFormat string `yaml:"date_time_format"`
+	// Amount of messages notifier reads from Redis per iteration
+	ReadBatchSize int `yaml:"read_batch_size"`
 }
 
 type selfStateConfig struct {
@@ -81,6 +83,7 @@ func getDefault() config {
 			},
 			FrontURI: "http://localhost",
 			Timezone: "UTC",
+			ReadBatchSize: 0,
 		},
 		Telemetry: cmd.TelemetryConfig{
 			Listen: ":8093",

@@ -98,7 +98,114 @@ func (connector *DbConnector) removeNotifications(notifications []*moira.Schedul
 }
 
 // FetchNotifications fetch notifications by given timestamp and delete it
-func (connector *DbConnector) FetchNotifications(to int64) ([]*moira.ScheduledNotification, error) {
+func (connector *DbConnector) FetchNotifications(to int64, limit int64) ([]*moira.ScheduledNotification, error){
+	// No limit
+	if limit == 0 {
+		return connector.fetchNotificationsNoLimit(to)
+	}
+
+	count, err := connector.notificationsCount(to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hope count will be not greater then limit when we call fetchNotificationsNoLimit
+	if *count < limit / 2 {
+		return connector.fetchNotificationsNoLimit(to)
+	}
+
+	return connector.fetchNotificationsWithLimit(to, limit)
+}
+
+func (connector *DbConnector) notificationsCount(to int64) (*int64, error){
+	c := connector.pool.Get()
+	defer c.Close()
+
+	count, err := redis.Int64(c.Do("ZCOUNT", notifierNotificationsKey, "-inf", to))
+	if err != nil {
+		return nil, fmt.Errorf("failed to ZCOUNT to notificationsCount: %s", err)
+	}
+	return &count, nil
+}
+
+// Drops all notifivtsions with max timestamp
+func limitNotifications(notifications []*moira.ScheduledNotification) ([]*moira.ScheduledNotification) {
+	last_ts := notifications[len(notifications) - 1].Timestamp
+	i := len(notifications) - 1
+	for ;i >= 0; i-- {
+		if notifications[i].Timestamp != last_ts {
+			break
+		}
+	}
+
+	if i == -1 {
+		return notifications;
+	}
+
+	return notifications[:i+1]
+}
+
+// fetchNotificationsWithLimit reads and drops notifications from DB with limit
+func (connector *DbConnector) fetchNotificationsWithLimit(to int64, limit int64) ([]*moira.ScheduledNotification, error) {
+	// т.к. при удалении испольузется Watch нотификации могут не удалится из-за изменения данных в другом потоке
+	// см. https://redis.io/topics/transactions
+	for i := 0; i <= 10; i++ {
+		res, err := connector.fetchNotificationsWithLimitDo(to, limit)
+		if err == nil {
+			return res, nil
+		}
+
+		if err.Error() != "Transaction error" {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("Transaction tries limit exided!")
+}
+
+// same as fetchNotificationsWithLimit, but only once
+func (connector *DbConnector) fetchNotificationsWithLimitDo(to int64, limit int64) ([]*moira.ScheduledNotification, error) {
+	c := connector.pool.Get()
+	defer c.Close()
+
+	c.Send("WATCH", notifierNotificationsKey)
+	response, err := redis.Values(c.Do("ZRANGEBYSCORE", notifierNotificationsKey, "-inf", to, "LIMIT", 0, limit))
+	if err != nil {
+		return nil, fmt.Errorf("failed to EXEC: %s", err)
+	}
+
+	if len(response) == 0 {
+		return make([]*moira.ScheduledNotification, 0), nil
+	}
+
+	notifications, err := reply.Notifications(response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to EXEC: %s", err)
+	}
+
+	notificationsLimited := limitNotifications(notifications)
+	if (len(notifications) == len(notificationsLimited)) {
+		c.Send("UNWATCH")
+		return connector.fetchNotificationsNoLimit(to)
+	}
+
+	last_ts := notificationsLimited[len(notificationsLimited) - 1].Timestamp
+
+	c.Send("MULTI")
+	c.Send("ZREMRANGEBYSCORE", notifierNotificationsKey, "-inf", last_ts)
+	deleted_count, err_delete := redis.Int64(c.Do("EXEC"))
+	if err_delete != nil {
+		return nil, fmt.Errorf("failed to EXEC: %s", err)
+	}
+
+	if deleted_count == 0 {
+		return nil, fmt.Errorf("Transaction error")
+	}
+
+	return notificationsLimited, nil
+}
+
+// FetchNotifications fetch notifications by given timestamp and delete it
+func (connector *DbConnector) fetchNotificationsNoLimit(to int64) ([]*moira.ScheduledNotification, error) {
 	c := connector.pool.Get()
 	defer c.Close()
 

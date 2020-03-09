@@ -17,4 +17,5 @@ type Config struct {
 	FrontURL          string
 	Location          *time.Location
 	DateTimeFormat    string
+	ReadBatchSize     int
 }

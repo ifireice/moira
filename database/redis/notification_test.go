@@ -52,7 +52,7 @@ func TestScheduledNotification(t *testing.T) {
 		})
 
 		Convey("Test fetch notifications", func() {
-			actual, err := dataBase.FetchNotifications(now - 3600)
+			actual, err := dataBase.FetchNotifications(now - 3600, 0)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notificationOld})
 
@@ -61,7 +61,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 2)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notification, &notificationNew})
 
-			actual, err = dataBase.FetchNotifications(now + 3600)
+			actual, err = dataBase.FetchNotifications(now + 3600, 0)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notification, &notificationNew})
 
@@ -116,7 +116,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 0)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 
-			actual, err = dataBase.FetchNotifications(now + 3600)
+			actual, err = dataBase.FetchNotifications(now + 3600, 0)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 		})
@@ -156,7 +156,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 0)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 
-			actual, err = dataBase.FetchNotifications(now + 3600)
+			actual, err = dataBase.FetchNotifications(now + 3600, 0)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 		})
@@ -186,7 +186,7 @@ func TestScheduledNotificationErrorConnection(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(total, ShouldEqual, 0)
 
-		actual2, err := dataBase.FetchNotifications(0)
+		actual2, err := dataBase.FetchNotifications(0, 0)
 		So(err, ShouldNotBeNil)
 		So(actual2, ShouldBeNil)
 

@@ -86,3 +86,8 @@ func (mr *MockNotifierMockRecorder) StopSenders() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopSenders", reflect.TypeOf((*MockNotifier)(nil).StopSenders))
 }
+
+// GetReadBatchSize
+func (mr *MockNotifier) GetReadBatchSize() int64 {
+	return int64(0)
+}
