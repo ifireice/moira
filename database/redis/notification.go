@@ -183,21 +183,20 @@ func (connector *DbConnector) fetchNotificationsWithLimitDo(to int64, limit int6
 	}
 
 	notificationsLimited := limitNotifications(notifications)
+	last_ts := notificationsLimited[len(notificationsLimited) - 1].Timestamp
 	if (len(notifications) == len(notificationsLimited)) {
 		c.Send("UNWATCH")
-		return connector.fetchNotificationsNoLimit(to)
+		return connector.fetchNotificationsNoLimit(last_ts)
 	}
-
-	last_ts := notificationsLimited[len(notificationsLimited) - 1].Timestamp
 
 	c.Send("MULTI")
 	c.Send("ZREMRANGEBYSCORE", notifierNotificationsKey, "-inf", last_ts)
-	deleted_count, err_delete := redis.Int64(c.Do("EXEC"))
+	deleted_count, err_delete := redis.Values(c.Do("EXEC"))
 	if err_delete != nil {
-		return nil, fmt.Errorf("failed to EXEC: %s", err)
+		return nil, fmt.Errorf("failed to EXEC: %s", err_delete)
 	}
 
-	if deleted_count == 0 {
+	if deleted_count[0] == 0 {
 		return nil, fmt.Errorf("Transaction error")
 	}
 
