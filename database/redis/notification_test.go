@@ -52,7 +52,7 @@ func TestScheduledNotification(t *testing.T) {
 		})
 
 		Convey("Test fetch notifications", func() {
-			actual, err := dataBase.FetchNotifications(now - 3600, 0)
+			actual, err := dataBase.FetchNotifications(now - 3600, -1)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notificationOld})
 
@@ -61,7 +61,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 2)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notification, &notificationNew})
 
-			actual, err = dataBase.FetchNotifications(now + 3600, 0)
+			actual, err = dataBase.FetchNotifications(now + 3600, -1)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notification, &notificationNew})
 
@@ -69,6 +69,13 @@ func TestScheduledNotification(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(total, ShouldEqual, 0)
 			So(actual, ShouldResemble, make([]*moira.ScheduledNotification, 0))
+		})
+
+		Convey("Test fetch notifications limit 0", func() {
+			actual, err := dataBase.FetchNotifications(now - 3600, 0)
+			err_msg := fmt.Errorf("limit musn't be 0")
+			So(err, ShouldResemble, err_msg)
+			So(actual, ShouldBeNil )
 		})
 
 		Convey("Test remove notifications by key", func() {
@@ -115,7 +122,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 0)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 
-			actual, err = dataBase.FetchNotifications(now + 3600, 0)
+			actual, err = dataBase.FetchNotifications(now + 3600, -1)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 		})
@@ -154,7 +161,7 @@ func TestScheduledNotification(t *testing.T) {
 			So(total, ShouldEqual, 0)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 
-			actual, err = dataBase.FetchNotifications(now + 3600, 0)
+			actual, err = dataBase.FetchNotifications(now + 3600, -1)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{})
 		})
@@ -184,7 +191,7 @@ func TestScheduledNotificationErrorConnection(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(total, ShouldEqual, 0)
 
-		actual2, err := dataBase.FetchNotifications(0, 0)
+		actual2, err := dataBase.FetchNotifications(0, -1)
 		So(err, ShouldNotBeNil)
 		So(actual2, ShouldBeNil)
 
@@ -269,7 +276,7 @@ func TestFetchNotifications(t *testing.T) {
 
 		Convey("Test fetch notifications without limit", func() {
 			addNotifications(dataBase, []moira.ScheduledNotification{notification, notificationNew, notificationOld})
-			actual, err := dataBase.FetchNotifications(now + 6000, 0)
+			actual, err := dataBase.FetchNotifications(now + 6000, -1)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, []*moira.ScheduledNotification{&notificationOld, &notification, &notificationNew})
 
@@ -309,8 +316,7 @@ func TestNotificationsCount(t *testing.T) {
 			addNotifications(dataBase, []moira.ScheduledNotification{notification, notificationNew, notificationOld})
 			actual, err := dataBase.notificationsCount(now + 6000)
 			So(err, ShouldBeNil)
-			actual_count := int64(3)
-			So(actual, ShouldResemble, &actual_count)
+			So(actual, ShouldResemble, int64(3))
 
 			err = dataBase.RemoveAllNotifications()
 			So(err, ShouldBeNil)
@@ -320,8 +326,7 @@ func TestNotificationsCount(t *testing.T) {
 			addNotifications(dataBase, []moira.ScheduledNotification{notification, notificationNew, notificationOld})
 			actual, err := dataBase.notificationsCount(now - 7000)
 			So(err, ShouldBeNil)
-			actual_count := int64(0)
-			So(actual, ShouldResemble, &actual_count)
+			So(actual, ShouldResemble, int64(0))
 
 			err = dataBase.RemoveAllNotifications()
 			So(err, ShouldBeNil)
@@ -331,8 +336,7 @@ func TestNotificationsCount(t *testing.T) {
 			addNotifications(dataBase, []moira.ScheduledNotification{notification, notificationNew, notificationOld})
 			actual, err := dataBase.notificationsCount(now)
 			So(err, ShouldBeNil)
-			actual_count := int64(2)
-			So(actual, ShouldResemble, &actual_count)
+			So(actual, ShouldResemble, int64(2))
 
 			err = dataBase.RemoveAllNotifications()
 			So(err, ShouldBeNil)
@@ -342,8 +346,7 @@ func TestNotificationsCount(t *testing.T) {
 			addNotifications(dataBase, []moira.ScheduledNotification{})
 			actual, err := dataBase.notificationsCount(now)
 			So(err, ShouldBeNil)
-			actual_count := int64(0)
-			So(actual, ShouldResemble, &actual_count)
+			So(actual, ShouldResemble, int64(0))
 
 			err = dataBase.RemoveAllNotifications()
 			So(err, ShouldBeNil)

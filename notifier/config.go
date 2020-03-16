@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+const NotificationsLimitUnlimited = -1
+
 // Config is sending settings including log settings
 type Config struct {
 	Enabled           bool

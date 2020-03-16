@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/moira-alert/moira/notifier"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,10 @@ import (
 	"github.com/moira-alert/moira/database/redis/reply"
 )
 
-const transactionTriesLimit = 10
+const (
+	transactionTriesLimit = 10
+  transactionHeuristicLimit = 100000
+)
 
 // Custom error for transaction error
 type transactionError struct {}
@@ -29,7 +33,7 @@ func limitNotifications(notifications []*moira.ScheduledNotification) ([]*moira.
 		return notifications
 	}
 	i := len(notifications) - 1
-	last_ts := notifications[len(notifications) - 1].Timestamp
+	last_ts := notifications[i].Timestamp
 
 	for ;i >= 0; i-- {
 		if notifications[i].Timestamp != last_ts {
@@ -131,8 +135,13 @@ func (connector *DbConnector) removeNotifications(notifications []*moira.Schedul
 
 // FetchNotifications fetch notifications by given timestamp and delete it
 func (connector *DbConnector) FetchNotifications(to int64, limit int64) ([]*moira.ScheduledNotification, error) {
-	// No limit
+
 	if limit == 0 {
+		return nil, fmt.Errorf("limit musn't be 0")
+	}
+
+	// No limit
+	if limit == notifier.NotificationsLimitUnlimited {
 		return connector.fetchNotificationsNoLimit(to)
 	}
 
@@ -142,25 +151,24 @@ func (connector *DbConnector) FetchNotifications(to int64, limit int64) ([]*moir
 	}
 
 	// Hope count will be not greater then limit when we call fetchNotificationsNoLimit
-	if count == nil {
-		return nil, fmt.Errorf("failed to count notification in db")
-	}
-	if *count < limit/2 {
+	if limit < transactionHeuristicLimit && count < limit/2 {
 		return connector.fetchNotificationsNoLimit(to)
 	}
 
 	return connector.fetchNotificationsWithLimit(to, limit)
 }
 
-func (connector *DbConnector) notificationsCount(to int64) (*int64, error) {
+func (connector *DbConnector) notificationsCount(to int64) (int64, error) {
 	c := connector.pool.Get()
 	defer c.Close()
 
 	count, err := redis.Int64(c.Do("ZCOUNT", notifierNotificationsKey, "-inf", to))
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to ZCOUNT to notificationsCount: %s", err)
+		return 0, fmt.Errorf("failed to ZCOUNT to notificationsCount: %s", err)
 	}
-	return &count, nil
+
+	return count, nil
 }
 
 // fetchNotificationsWithLimit reads and drops notifications from DB with limit

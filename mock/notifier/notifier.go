@@ -89,5 +89,5 @@ func (mr *MockNotifierMockRecorder) StopSenders() *gomock.Call {
 
 // GetReadBatchSize
 func (mr *MockNotifier) GetReadBatchSize() int64 {
-	return int64(0)
+	return int64(-1)
 }

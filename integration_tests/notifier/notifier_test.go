@@ -31,7 +31,7 @@ var notifierConfig = notifier.Config{
 	ResendingTimeout: time.Hour * 24,
 	Location:         location,
 	DateTimeFormat:   dateTimeFormat,
-	ReadBatchSize: 0,
+	ReadBatchSize: -1,
 }
 
 var shutdown = make(chan struct{})
